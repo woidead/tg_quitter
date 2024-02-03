@@ -1,0 +1,13 @@
+1. Заполнить chats.txt
+2. Загрузить tdata аккаунты в папку tdatas
+3. Прописать proxy_type в конфиг
+
+- Если proxy_type = 0, то в proxy.txt следует указать ссылку на ваш сайт с прокси по типу proxy.am
+
+- Если proxy_type = 1, то в proxy.txt следует вставить прокси в виде addr:port каждое с новой строки
+
+- Если proxy_type = 2, то proxy.txt следует оставить пустым
+
+
+4.1 Start with archive - Вступление с архивированием
+4.2 Start without archive - Вступление без архивирования

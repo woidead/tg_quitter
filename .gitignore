@@ -1,0 +1,8 @@
+__pycache__/
+tdata/
+.session
+.session-journal
+*.pyc
+.idea/
+env
+*tdata*
