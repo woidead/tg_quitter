@@ -16,9 +16,8 @@ try:
 
     import socks
     from telethon import types
-    from telethon.errors import UsernameInvalidError, ReactionInvalidError, FloodWaitError, ChannelPrivateError, InviteRequestSentError, ChannelsTooMuchError, RPCError
-    from telethon.tl.functions.channels import JoinChannelRequest, LeaveChannelRequest
-    from telethon.tl.functions.messages import SendReactionRequest
+    from telethon.errors import RPCError
+    from telethon.tl.functions.channels import LeaveChannelRequest
 
     from config import (
         timeforsleep,
@@ -28,7 +27,7 @@ try:
         random_reaction,
         max_joins_per_session,
     )
-    from log_config import logging, sentry_sdk
+    from log_config import logging
     from opentele.api import API, UseCurrentSession
     from opentele.exception import TFileNotFound
     from opentele.td import TDesktop
@@ -61,10 +60,6 @@ try:
     LIMIT = limit
     PROXY_TYPE = proxy_type
 
-
-    def random_delay():
-        """Возвращает случайное число в диапазоне от 1 до 5."""
-        return random.randint(5, 15)
 
 
     class Proxy:
@@ -113,14 +108,11 @@ try:
         except PermissionError:
             logging.error("Недостаточно прав для удаления файла.")
         except Exception as e:
-            sentry_sdk.capture_exception(e)
             logging.error(f"Произошла ошибка при попытке удаления файла: {e}")
         session_names = os.listdir("./tdatas")
         random.shuffle(session_names)
         for session_index, session_name in enumerate(session_names):
             clear_session_data(session_name)
-            shuffled_chats = list(chats)  
-            random.shuffle(shuffled_chats)  
             t = Thread(
                 target=start_single_session,
                 args=(
@@ -148,7 +140,6 @@ try:
         except PermissionError:
             logging.error("Недостаточно прав для удаления файла.")
         except Exception as e:
-            sentry_sdk.capture_exception(e)
             logging.error(f"Произошла ошибка при попытке удаления файла: {e}")
 
 
@@ -160,7 +151,6 @@ try:
             for dialog in await client.get_dialogs():
                 joined.append(dialog.entity.id)
         except Exception as e:
-            sentry_sdk.capture_exception(e)
             logging.error(f"Error: {e}")
             return False
 
@@ -176,16 +166,13 @@ try:
         except TFileNotFound:
             pass
         except Exception as e:
-            sentry_sdk.capture_exception(e)
             logging.error(f"Нерабочий аккаунт! {e}")
             sys.exit(1)
 
-        # check for key_datas
         if not tdesk:
             try:
                 tdesk = TDesktop(f"tdatas/{tname}", keyFile='datas')
             except Exception as e:
-                sentry_sdk.capture_exception(e)
                 logging.error(f"Нерабочий аккаунт! {e}")
                 sys.exit(1)
 
@@ -219,7 +206,6 @@ try:
                 )
                 await client.connect()
             except Exception as e:
-                sentry_sdk.capture_exception(e)
                 if "ConnectionError" in str(e):
                     logging.warning(f"{tname} | Нерабочие прокси: {addr}:{port}")
                     logging.info(f"{tname} | Заменяем прокси")
@@ -243,10 +229,8 @@ try:
 
     async def main(proxy_index, session_name):
         """Основная функция."""
-        joined = 0
-        inchat = 0
-        sendedreq = 0
-        notjoined = 0
+        with open("chats.txt", "r") as chats:
+            chats_to_keep = chats.read().split("\n")
 
         logging.info("Запуск сессии")
 
@@ -269,17 +253,18 @@ try:
 
         joined_chats = await get_joined_chats(client)
         if not joined_chats:
-            logging.error(f"{session_name} - Нет чатов или групп")
+            logging.info(f"{session_name} - Нет чатов или групп")
             return
         dialogs = await client.get_dialogs()
         channels = [d.entity for d in dialogs if isinstance(d.entity, (types.Channel, types.Chat))]
         
         for channel in channels:
             try:
-                await client(LeaveChannelRequest(channel))
-                print(f"Left channel: {channel.title}")
+                if isinstance(channel.id, types.Channel) and channel.title not in chats_to_keep:
+                    await client(LeaveChannelRequest(channel))
+                    logging.info(f"Left channel: {channel.title}")
             except Exception as e:
-                print(f"Failed to leave channel {channel.title}: {e}")
+                logging.info(f"Failed to leave channel {channel.title}: {e}")
 
 
 
@@ -345,8 +330,7 @@ try:
     create_widgets(root)
     root.mainloop()
 except Exception as e:
-    sentry_sdk.capture_exception(e)
-    print(f"Произошла ошибка: {e}")
+    logging.error(f"Произошла ошибка: {e}")
     traceback.print_exc()
     input("Нажмите Enter, чтобы выйти...")
     raise
